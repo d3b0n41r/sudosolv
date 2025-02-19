@@ -10,7 +10,7 @@
 // global
 int board_in[SIZE][SIZE], board_out[SIZE][SIZE];
 int row, col;
-clock_t t;
+clock_t start;
 
 // make board
 void init_board();
@@ -109,7 +109,6 @@ void get_board_values() {
         }
     }while (c != 'q');
     // solve
-    t = clock();
     solve_board_recur(row = 0, col = 0);
 }
 int is_valid(int ro, int co, int val) {
@@ -151,6 +150,9 @@ int solve_board_recur(int r, int c) {
         if(is_valid(r, c, num)) { 
             board_out[r][c] = num;
             display_board();
+            clock_t current = clock();
+            double elapsed = ((double)(current - start)) / CLOCKS_PER_SEC;
+            printw("time elapsed: %f seconds\n", elapsed);
             refresh();
             if(solve_board_recur(r, c+1))
                 return 1;
@@ -158,7 +160,6 @@ int solve_board_recur(int r, int c) {
         board_out[r][c] = 0;
         num++;
     }
-    t = clock() - t;
     return 0;
 }
 // print board
@@ -195,8 +196,6 @@ void display_board() {
     printw("\n");
     print_row_split(9); // use overlines instead of underlines
     printw("\n");
-    printw("time elapsed: %f", ((double)t)/CLOCKS_PER_SEC);
-    napms(7);
 }
 // gaps between 3x3 grids makes board more easily read
 void print_row_split(int y) {
