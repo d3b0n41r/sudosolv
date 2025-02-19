@@ -2,13 +2,15 @@
 #include <string.h>
 #include <curses.h> // pacman -S ncurses
 #include <locale.h> // allows overscore UTF-8 using printw
+#include <time.h>
 
 // define
 #define SIZE 9
 
 // global
-int board[SIZE][SIZE];
+int board_in[SIZE][SIZE], board_out[SIZE][SIZE];
 int row, col;
+clock_t t;
 
 // make board
 void init_board();
@@ -36,7 +38,6 @@ int main(void) {
     setlocale(LC_ALL, "");
     initscr();
     cbreak();
-    noecho();
     keypad(stdscr, TRUE);
     start_color();
     init_color(COLOR_WHITE, 1000, 1000, 1000);
@@ -49,8 +50,6 @@ int main(void) {
     display_board();
     get_board_values();
 
-    clear();
-    display_board();
     getch();
 
     // end curses.h
@@ -63,7 +62,7 @@ int main(void) {
 void init_board() {
     for(int y = 0; y < SIZE; y++) {
         for(int x = 0; x < SIZE; x++) {
-            board[y][x] = 0;
+            board_in[y][x] = board_out[y][x] = 0;
         }
     }
 }
@@ -102,31 +101,30 @@ void get_board_values() {
     int c;
     do {
         c = getch();
-        clear();
         get_arrows_pressed(c);
         display_board();
         if(c >= '0' && c <= '9') { // number key pressed
-            board[row][col] = c - 48;
-            clear();
+            board_in[row][col] = board_out[row][col] = c - 48;
             display_board();
         }
     }while (c != 'q');
     // solve
-    solve_board_recur(0, 0);
+    t = clock();
+    solve_board_recur(row = 0, col = 0);
 }
 int is_valid(int ro, int co, int val) {
     int i, j, r, c;
 
-    if(board[ro][co] != 0) {
-        if(board[ro][co] != val)
+    if(board_in[ro][co] != 0) {
+        if(board_in[ro][co] != val)
             return 0;
     }
     for(i = 0; i < 9; i++) {
         if(i != co)
-            if(board[ro][i] == val)
+            if(board_out[ro][i] == val)
                 return 0;
         if(i != ro)
-            if(board[i][co] == val)
+            if(board_out[i][co] == val)
                 return 0;
     }
     r = (ro / 3) * 3;
@@ -134,7 +132,7 @@ int is_valid(int ro, int co, int val) {
     for(i = r; i < r + 3; i++)
         for(j = c; j < c + 3; j++)
             if(i != ro || j != co)
-                if(board[i][j] == val)
+                if(board_out[i][j] == val)
                     return 0;
     
     return 1;
@@ -142,7 +140,6 @@ int is_valid(int ro, int co, int val) {
 // solve board
 int solve_board_recur(int r, int c) {
     int num = 1;
-
     if(c == 9) {
         c = 0;
         r++;
@@ -152,17 +149,21 @@ int solve_board_recur(int r, int c) {
     }
     while (num < 10) {
         if(is_valid(r, c, num)) { 
-            board[r][c] = num;
+            board_out[r][c] = num;
+            display_board();
+            refresh();
             if(solve_board_recur(r, c+1))
                 return 1;
         }
-        board[r][c] = 0;
+        board_out[r][c] = 0;
         num++;
     }
+    t = clock() - t;
     return 0;
 }
 // print board
 void display_board() {
+    clear();
     printw("\n press q to solve\n");
     for(int y = 0; y < SIZE; y++) {
         printw("\n");
@@ -173,11 +174,11 @@ void display_board() {
             // highlight pointer location relative to board
             if(row == y && col == x) {
                 set_cursor_red_background();
-                printw("%d", board[y][x]);
+                printw("%d", board_out[y][x]);
                 reset_cursor_red_background();
             }
             else
-                printw("%d", board[y][x]);
+                printw("%d", board_out[y][x]);
             if((x+1)%3==0 && x != SIZE - 1) {
                 print_yellow_bar();
                 printw(" ");
@@ -194,6 +195,8 @@ void display_board() {
     printw("\n");
     print_row_split(9); // use overlines instead of underlines
     printw("\n");
+    printw("time elapsed: %f", ((double)t)/CLOCKS_PER_SEC);
+    napms(7);
 }
 // gaps between 3x3 grids makes board more easily read
 void print_row_split(int y) {
